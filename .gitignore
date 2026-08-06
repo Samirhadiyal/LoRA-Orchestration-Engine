@@ -216,3 +216,19 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# ========================
+# NeuroMesh Custom Additions
+# ========================
+# Local database volumes (Docker)
+pgdata/
+qdrant_data/
+
+# Machine Learning Models & Adapters
+models/
+lora_adapters/
+*.safetensors
+
+# Frontend (Phase 6)
+node_modules/
+.next/
