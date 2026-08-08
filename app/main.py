@@ -6,6 +6,7 @@ from app.core.config import settings
 from app.database.engine import engine
 from app.database.models import ChatSession, Document, DocumentChunk
 from app.api import documents, sessions, retrieval
+from app.api import documents, sessions, retrieval, orchestrate
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
@@ -29,6 +30,7 @@ def on_startup():
 app.include_router(documents.router, prefix=settings.API_V1_STR)
 app.include_router(sessions.router, prefix=settings.API_V1_STR)
 app.include_router(retrieval.router, prefix=settings.API_V1_STR)
+app.include_router(orchestrate.router, prefix=settings.API_V1_STR)
 
 @app.get("/health", tags=["System"])
 async def health_check():
