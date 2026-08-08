@@ -156,6 +156,7 @@ venv/
 ENV/
 env.bak/
 venv.bak/
+.xrv
 
 # Spyder project settings
 .spyderproject
