@@ -1,9 +1,11 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from sqlmodel import SQLModel
 
 from app.core.config import settings
-from app.database.models import ChatSession, Document, DocumentChunk  # Correct import path
-from app.api import documents
+from app.database.engine import engine
+from app.database.models import ChatSession, Document, DocumentChunk
+from app.api import documents, sessions, retrieval
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
@@ -19,11 +21,17 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Include Routers
-app.include_router(documents.router, prefix=settings.API_V1_STR)
+@app.on_event("startup")
+def on_startup():
+    SQLModel.metadata.create_all(engine)
 
-@app.get("/health")
-def health_check():
+# Register API Routers
+app.include_router(documents.router, prefix=settings.API_V1_STR)
+app.include_router(sessions.router, prefix=settings.API_V1_STR)
+app.include_router(retrieval.router, prefix=settings.API_V1_STR)
+
+@app.get("/health", tags=["System"])
+async def health_check():
     return {
         "status": "healthy",
         "project": settings.PROJECT_NAME,
