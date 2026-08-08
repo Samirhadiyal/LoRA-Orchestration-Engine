@@ -4,7 +4,7 @@ from qdrant_client.models import PointStruct, VectorParams, Distance
 from app.embeddings.bge import generate_embeddings
 
 # 1. Connect to the local Qdrant container running via Docker Compose
-qdrant = QdrantClient(host="localhost", port=6333)
+qdrant = QdrantClient(host="localhost", port=6333, check_compatibility=False)
 COLLECTION_NAME = "neuromesh_knowledge"
 
 def init_qdrant_collection():
