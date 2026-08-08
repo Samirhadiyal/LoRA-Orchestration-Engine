@@ -1,12 +1,11 @@
 # app/database/session.py
-from typing import Generator
 from sqlmodel import Session
 from app.database.engine import engine
 
-def get_db() -> Generator[Session, None, None]:
+def get_session():
     """
-    FastAPI dependency that provides a transactional database session per request
-    and automatically closes it when the request is finished.
+    Dependency function that yields a database session for FastAPI routes.
+    Automatically closes the session after the request is completed.
     """
     with Session(engine) as session:
         yield session

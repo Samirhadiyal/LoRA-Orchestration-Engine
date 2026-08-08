@@ -4,18 +4,18 @@ from sqlmodel import SQLModel
 
 from app.core.config import settings
 from app.database.engine import engine
-from app.models.session import ChatSession  
-from app.api import sessions, retrieval # <-- 1. Import retrieval router
+from app.database.models import ChatSession, Document, DocumentChunk
+from app.api import documents, sessions, retrieval
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
     version=settings.VERSION,
-    openapi_url=f"{settings.API_V1_STR}/openapi.json"
 )
 
+# Configure CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -26,8 +26,9 @@ def on_startup():
     SQLModel.metadata.create_all(engine)
 
 # Register API Routers
+app.include_router(documents.router, prefix=settings.API_V1_STR)
 app.include_router(sessions.router, prefix=settings.API_V1_STR)
-app.include_router(retrieval.router, prefix=settings.API_V1_STR) # <-- 2. Register router
+app.include_router(retrieval.router, prefix=settings.API_V1_STR)
 
 @app.get("/health", tags=["System"])
 async def health_check():
