@@ -4,7 +4,7 @@ from typing import Any, List, Optional, Dict
 from pydantic import BaseModel, Field
 from uuid import UUID
 
-from app.planner.schemas import Plan 
+from app.planner.schemas import ExecutionPlan
 
 class ExecutionStatus(str, Enum):
     PENDING = "pending"
@@ -36,7 +36,7 @@ class ExecutionState(BaseModel):
     session_id: Optional[UUID] = None
     user_query: str
     
-    plan: Plan
+    plan: ExecutionPlan
     status: ExecutionStatus = ExecutionStatus.PENDING
     current_step_index: int = 0
     
