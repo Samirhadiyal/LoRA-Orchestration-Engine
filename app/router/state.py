@@ -14,10 +14,10 @@ class ExecutionStatus(str, Enum):
 
 class StepStatus(str, Enum):
     PENDING = "pending"
+    IN_PROGRESS = "in_progress"
     RUNNING = "running"
     COMPLETED = "completed"
     FAILED = "failed"
-    SKIPPED = "skipped"
 
 class ExecutionStep(BaseModel):
     """Runtime representation of a planned step."""
@@ -41,7 +41,7 @@ class ExecutionState(BaseModel):
     current_step_index: int = 0
     
     steps: List[ExecutionStep] = Field(default_factory=list)
-    retrieved_context: List[Dict[str, Any]] = Field(default_factory=list)
+    retrieved_context: str = ""
     tool_results: List[Dict[str, Any]] = Field(default_factory=list)
     expert_output: Optional[str] = None
     final_response: Optional[str] = None

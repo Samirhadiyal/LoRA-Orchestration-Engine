@@ -24,7 +24,15 @@ async def execute_step(state: ExecutionState) -> ExecutionState:
         
         # Execute the handler and update the state
         state = await handler.execute(state, current_step)
-        current_step.status = StepStatus.COMPLETED
+
+        if current_step.status == StepStatus.FAILED:
+            state.status = ExecutionStatus.FAILED
+            state.error = current_step.error or f"Execution failed on step '{current_step.step_id}'"
+        else:
+            current_step.status = StepStatus.COMPLETED
+            state.current_step_index += 1
+            if state.current_step_index >= len(state.steps):
+                state.status = ExecutionStatus.COMPLETED
         
     except Exception as e:
         # If anything fails safely catch it and mark the execution as failed
@@ -44,12 +52,9 @@ def check_next_action(state: ExecutionState) -> str:
         return END
         
     # If there are more steps in the array, loop back
-    if state.current_step_index + 1 < len(state.steps):
-        state.current_step_index += 1
+    if state.current_step_index < len(state.steps):
         return "execute_step"
         
-    # Otherwise, we are done!
-    state.status = ExecutionStatus.COMPLETED
     return END
 
 # --- Compile the LangGraph ---

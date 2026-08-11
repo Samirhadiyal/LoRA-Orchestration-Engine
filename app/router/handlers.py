@@ -26,10 +26,8 @@ class RetrievalHandler:
         step.status = StepStatus.IN_PROGRESS
         
         try:
-            # 1. Execute actual hybrid search against Qdrant
             search_results = hybrid_search(state.user_query)
             
-            # 2. Format results into a single context string
             if not search_results:
                 state.retrieved_context = "No relevant documents found in the knowledge base."
             else:
@@ -44,10 +42,13 @@ class RetrievalHandler:
             step.result = {"status": "success", "chunks_retrieved": len(search_results)}
             
         except Exception as e:
-            logger.error(f"RAG Retrieval failed: {e}")
-            step.status = StepStatus.FAILED
-            step.result = {"status": "error"}
-            state.error = f"Retrieval failed: {str(e)}"
+            logger.warning("RAG retrieval unavailable; continuing with empty context: %s", e)
+            state.retrieved_context = (
+                "No external knowledge base context available "
+                "(Qdrant collection uninitialized or offline)."
+            )
+            step.status = StepStatus.COMPLETED
+            step.result = {"status": "fallback_empty_context", "message": str(e)}
             
         return state
 

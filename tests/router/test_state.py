@@ -6,12 +6,16 @@ from app.router.state import (
     ExecutionStatus,
     StepStatus
 )
-from app.planner.schemas import Plan
+from app.planner.schemas import ExecutionPlan
+
+
+def make_plan():
+    return ExecutionPlan(user_intent="test", requires_retrieval=False, steps=[])
 
 def test_state_initializes_correctly():
     """Test: State initializes correctly with expected default values."""
     request_id = uuid.uuid4()
-    dummy_plan = Plan()
+    dummy_plan = make_plan()
     
     state = ExecutionState(
         request_id=request_id,
@@ -24,7 +28,7 @@ def test_state_initializes_correctly():
     assert state.status == ExecutionStatus.PENDING
     assert state.current_step_index == 0
     assert state.steps == []
-    assert state.retrieved_context == []
+    assert state.retrieved_context == ""
     assert state.tool_results == []
     assert state.expert_output is None
     assert state.final_response is None
@@ -36,7 +40,7 @@ def test_state_can_store_steps_and_results():
     state = ExecutionState(
         request_id=uuid.uuid4(),
         user_query="What is the revenue?",
-        plan=Plan()
+        plan=make_plan()
     )
     
     step = ExecutionStep(step_id="step_1", action="retrieve")
@@ -45,9 +49,8 @@ def test_state_can_store_steps_and_results():
     assert state.steps[0].action == "retrieve"
     assert state.steps[0].status == StepStatus.PENDING
     
-    state.retrieved_context.append({"doc_id": "123", "text": "Q1 Revenue was $5M"})
-    assert len(state.retrieved_context) == 1
-    assert state.retrieved_context[0]["doc_id"] == "123"
+    state.retrieved_context = "--- RETRIEVED CONTEXT ---\n[Source 1]: Q1 Revenue was $5M"
+    assert "Q1 Revenue was $5M" in state.retrieved_context
     
     state.tool_results.append({"tool": "calculator", "output": 5000000})
     assert len(state.tool_results) == 1
@@ -60,7 +63,7 @@ def test_state_failure_storage():
     state = ExecutionState(
         request_id=uuid.uuid4(),
         user_query="test",
-        plan=Plan()
+        plan=make_plan()
     )
     
     state.status = ExecutionStatus.FAILED
@@ -75,7 +78,7 @@ def test_state_serialization():
     original_state = ExecutionState(
         request_id=request_id,
         user_query="test serialization",
-        plan=Plan(),
+        plan=make_plan(),
         status=ExecutionStatus.RUNNING,
         current_step_index=1,
         final_response="Success"
