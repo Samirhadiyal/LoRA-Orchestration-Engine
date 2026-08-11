@@ -1,6 +1,7 @@
 import json
+
 import redis.asyncio as redis
-from typing import List, Dict
+
 from app.core.config import settings
 
 # Gracefully read REDIS_URL from settings, or fall back to local Redis if not defined
@@ -23,7 +24,7 @@ class RedisSessionManager:
         # Reset the expiration timer every time a new message is added
         await self.redis.expire(key, self.ttl)
 
-    async def get_history(self, session_id: str) -> List[Dict]:
+    async def get_history(self, session_id: str) -> list[dict]:
         """Retrieves the full chat history for a given session."""
         key = f"chat_history:{session_id}"
         messages_json = await self.redis.lrange(key, 0, -1)

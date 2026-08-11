@@ -1,7 +1,8 @@
 # database/engine.py
 import os
-from sqlmodel import create_engine
+
 from dotenv import load_dotenv
+from sqlmodel import create_engine
 
 # Load environment variables from the .env file.
 load_dotenv()

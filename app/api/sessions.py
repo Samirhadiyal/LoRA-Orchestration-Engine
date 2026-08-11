@@ -1,15 +1,17 @@
 import uuid
+from typing import Annotated
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import Session  # Import Session from sqlmodel
 
-from app.memory.redis_client import session_manager
 from app.database.session import get_db
+from app.memory.redis_client import session_manager
 from app.models.session import ChatSession
 
 router = APIRouter(prefix="/sessions", tags=["Sessions"])
 
 @router.post("/")
-async def create_session(user_id: str, db: Session = Depends(get_db)):
+async def create_session(user_id: str, db: Annotated[Session, Depends(get_db)]):
     """
     Creates a new chat session in Postgres and initializes Redis memory.
     """
@@ -38,6 +40,6 @@ async def create_session(user_id: str, db: Session = Depends(get_db)):
             "user_id": user_id,
             "created_at": new_db_session.created_at
         }
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         db.rollback()
-        raise HTTPException(status_code=500, detail=f"Failed to create session: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to create session: {e!s}")

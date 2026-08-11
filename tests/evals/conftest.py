@@ -1,7 +1,8 @@
 # Path: tests/evals/conftest.py
+from typing import Any
+
 import pytest
 from datasets import Dataset
-from typing import Dict, Any, List
 
 
 @pytest.fixture(scope="session")
@@ -38,7 +39,7 @@ def rag_benchmark_dataset() -> Dataset:
 
 
 @pytest.fixture
-def mock_execution_trajectory() -> List[Dict[str, Any]]:
+def mock_execution_trajectory() -> list[dict[str, Any]]:
     """
     Mock LangGraph execution trajectory to verify StepStatus transitions
     and ensure zero infinite retry loops.

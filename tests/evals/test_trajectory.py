@@ -1,12 +1,14 @@
 # Path: tests/evals/test_trajectory.py
+from typing import Any
+
 import pytest
-from typing import List, Dict, Any
-from app.router.state import StepStatus
+
 from app.context.optimizer import ContextOptimizer
+from app.router.state import StepStatus
 
 
 @pytest.mark.eval
-def test_langgraph_trajectory_validity(mock_execution_trajectory: List[Dict[str, Any]]):
+def test_langgraph_trajectory_validity(mock_execution_trajectory: list[dict[str, Any]]):
     """
     Verifies that all steps in the execution plan reach StepStatus.COMPLETED
     without cycles or infinite retry loops.

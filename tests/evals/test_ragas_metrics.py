@@ -10,7 +10,6 @@ from ragas.metrics import (
     faithfulness,
 )
 
-
 OFFLINE_BENCHMARK_SCORES = {
     "context_precision": 0.88,
     "faithfulness": 0.90,

@@ -29,17 +29,28 @@ services:
       POSTGRES_DB: neuromesh_db
     volumes:
       - pgdata:/var/lib/postgresql/data
+    restart: always
 
   # Engineer B: Redis Cache
   redis:
     image: redis:7-alpine
     ports:
       - "6379:6379"
+    restart: always
 
-# Saves database data even if the container stops
+  qdrant:
+    image: qdrant/qdrant:latest
+    container_name: neuromesh-qdrant-1
+    ports:
+      - "6333:6333"   # REST API
+      - "6334:6334"   # gRPC (for high performance)
+    volumes:
+      - qdrant_data:/qdrant/storage
+    restart: always
+
 volumes:
   pgdata:
-
+  qdrant_data:
 # The commented out section below is an example of how to define a PostgreSQL
 # database that your application can use. `depends_on` tells Docker Compose to
 # start the database before your application. The `db-data` volume persists the
