@@ -1,20 +1,18 @@
-import sys
 import os
-from pathlib import Path
+import sys
 from logging.config import fileConfig
+from pathlib import Path
 
-from sqlalchemy import engine_from_config
-from sqlalchemy import pool
+from dotenv import load_dotenv
+from sqlalchemy import engine_from_config, pool
+from sqlmodel import SQLModel
 
 from alembic import context
-from dotenv import load_dotenv
-from sqlmodel import SQLModel
 
 # Ensure the root project directory is in the Python path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 # Import models so SQLModel metadata is populated
-import app.database.models
 
 load_dotenv()
 

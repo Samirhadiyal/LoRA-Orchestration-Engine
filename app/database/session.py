@@ -1,11 +1,14 @@
-# database/session.py
 from sqlmodel import Session
-from database.engine import engine
+
+from app.database.engine import engine
+
 
 def get_session():
-    """
-    Dependency generator for FastAPI.
-    Yields a database session and ensures it is properly closed after the request finishes.
-    """
+    """FastAPI dependency to yield a database session."""
+    with Session(engine) as session:
+        yield session
+
+def get_db():
+    """Alias for backwards compatibility with other routers."""
     with Session(engine) as session:
         yield session
