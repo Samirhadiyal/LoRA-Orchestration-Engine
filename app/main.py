@@ -1,10 +1,9 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from sqlmodel import SQLModel
-
 from app.core.config import settings
 from app.database.engine import engine
-from app.database.models import ChatSession, Document, DocumentChunk
+from app.models import ChatSession, Document, DocumentChunk
 from app.api import documents, sessions, retrieval
 from app.api import documents, sessions, retrieval, orchestrate
 
