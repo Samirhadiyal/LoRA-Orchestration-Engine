@@ -34,15 +34,12 @@ class SwarmSupervisorPolicy:
         Evaluates step action and metadata to decide between LOCAL and SWARM.
         Returns strictly 'LOCAL' or 'SWARM'.
         """
-        action = (step.action or "").strip().lower()
-        metadata: dict[str, Any] = getattr(step, "metadata", {}) or {}
-        
         if not self.is_swarm_enabled():
             logger.debug("Swarm disabled via config. Routing step '%s' to LOCAL.", step.step_id)
             return "LOCAL"
 
         action = (step.action or "").strip().lower()
-        metadata: dict[str, Any] = getattr(step, "metadata", {}) or {}
+        metadata: dict[str, Any] = step.metadata
 
         # 1. Specialized GPU LoRA adapter execution -> ALWAYS SWARM when enabled
         if action == "lora_adapter":
@@ -54,18 +51,16 @@ class SwarmSupervisorPolicy:
             logger.info("Routing external MCP step '%s' to SWARM worker.", step.step_id)
             return "SWARM"
 
-        # 3. RAG Retrieval -> SWARM only if heavy RAG requested (e.g. multi-doc / high top_k)
+        # 3. RAG Retrieval -> SWARM when metadata explicitly marks heavy_rag == True or top_k > 10
         if action == "rag_search":
-            is_heavy = metadata.get("heavy_rag", False) or metadata.get("top_k", 5) > 10
-            if is_heavy:
+            if metadata.get("heavy_rag") is True or metadata.get("top_k", 0) > 10:
                 logger.info("Routing heavy RAG step '%s' to SWARM worker.", step.step_id)
                 return "SWARM"
             return "LOCAL"
 
         # 4. SQL Queries -> SWARM only for large aggregations or long-running analytics
         if action == "sql_query":
-            is_heavy_sql = metadata.get("analytics", False) or metadata.get("heavy_query", False)
-            if is_heavy_sql:
+            if metadata.get("analytics") is True or metadata.get("heavy_query") is True:
                 logger.info("Routing heavy SQL step '%s' to SWARM worker.", step.step_id)
                 return "SWARM"
             return "LOCAL"

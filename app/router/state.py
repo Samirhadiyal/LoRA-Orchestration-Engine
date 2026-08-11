@@ -28,6 +28,7 @@ class ExecutionStep(BaseModel):
     status: StepStatus = StepStatus.PENDING
     result: Any | None = None
     error: str | None = None
+    metadata: dict[str, Any] = Field(default_factory=dict)
 
 class ExecutionState(BaseModel):
     """
