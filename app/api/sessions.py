@@ -1,11 +1,12 @@
 import uuid
 from typing import Annotated
 
-from app.database.session import get_db
-from app.memory.redis_client import session_manager
 from app.models.session import ChatSession
 from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import Session  # Import Session from sqlmodel
+
+from app.database.session import get_db
+from app.memory.redis_client import session_manager
 router = APIRouter(prefix="/sessions", tags=["Sessions"])
 
 @router.post("/")
