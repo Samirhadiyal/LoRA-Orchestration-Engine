@@ -2,10 +2,10 @@
 import hashlib
 from typing import Annotated, Any
 
-from app.database.models.document import Document, DocumentChunk, ProcessingStatus
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 from sqlmodel import Session, select
 
+from app.database.models.document import Document, DocumentChunk, ProcessingStatus
 from app.database.session import get_session
 from app.ingestion.chunker import DocumentChunker
 from app.ingestion.parsers import DocumentParser
