@@ -2,6 +2,7 @@ from app.router.handlers import (
     ExpertHandler,
     GenerationHandler,
     RetrievalHandler,
+    SwarmHandler,
     ToolHandler,
 )
 
@@ -14,6 +15,7 @@ class HandlerRegistry:
             "sql_query": ToolHandler(),
             "lora_adapter": ExpertHandler(),
             "direct_llm": GenerationHandler(),
+            "swarm_delegate": SwarmHandler(),
         }
 
     def get_handler(self, action: str):
