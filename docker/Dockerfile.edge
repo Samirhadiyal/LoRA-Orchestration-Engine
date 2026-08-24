@@ -1,0 +1,25 @@
+﻿# Phase 6E & 7: CPU-Only Slim Edge Container for Swarm Workers
+FROM python:3.12-slim as builder
+
+WORKDIR /app
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
+
+RUN apt-get update && apt-get install -y --no-install-recommends gcc python3-dev && rm -rf /var/lib/apt/lists/*
+
+COPY requirements.txt .
+RUN pip wheel --no-cache-dir --no-deps --wheel-dir /app/wheels -r requirements.txt
+
+FROM python:3.12-slim
+WORKDIR /app
+ENV NEUROMESH_MODE=edge
+ENV PYTHONPATH=/app
+
+COPY --from=builder /app/wheels /wheels
+COPY --from=builder /app/requirements.txt .
+RUN pip install --no-cache /wheels/*
+
+COPY ./app ./app
+
+EXPOSE 8000
+CMD ["python", "-m", "app.swarm.main_worker"]
