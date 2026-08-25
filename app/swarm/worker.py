@@ -47,6 +47,7 @@ class BaseSwarmWorker(ABC):
         self._is_running = True
         await self.registry.register_worker(self.profile)
         self._heartbeat_task = asyncio.create_task(self._heartbeat_loop())
+        self._task_poll_task = asyncio.create_task(self._task_loop())
         logger.info("Worker node online: %s | Capabilities: %s", self.profile.worker_id, self.profile.capabilities)
 
     async def stop(self) -> None:
@@ -58,9 +59,45 @@ class BaseSwarmWorker(ABC):
                 await self._heartbeat_task
             except (asyncio.CancelledError, RuntimeError):
                 pass
+                
+        if getattr(self, "_task_poll_task", None):
+            self._task_poll_task.cancel()
+            try:
+                await self._task_poll_task
+            except (asyncio.CancelledError, RuntimeError):
+                pass
 
         await self.registry.unregister_worker(self.profile.worker_id)
         logger.info("Worker node shutdown cleanly: %s", self.profile.worker_id)
+
+    async def _task_loop(self) -> None:
+        """Background loop polling the durable message bus for assigned tasks."""
+        while self._is_running:
+            try:
+                task = await self.bus.listen_for_task(self.profile.worker_id, timeout=1.0)
+                if task:
+                    logger.info("Worker %s received task %s", self.profile.worker_id, task["task_id"])
+                    try:
+                        result_dict = await self.process_task(task)
+                        success = True
+                        error = None
+                    except Exception as e:
+                        logger.exception("Task processing failed")
+                        result_dict = {}
+                        success = False
+                        error = str(e)
+                    
+                    await self.bus.publish_result({
+                        "task_id": task["task_id"],
+                        "step_id": task["step_id"],
+                        "worker_id": self.profile.worker_id,
+                        "success": success,
+                        "result": result_dict,
+                        "error": error
+                    })
+            except Exception as e:
+                logger.error("Error in task loop: %s", e)
+                await asyncio.sleep(1.0)
 
     async def _heartbeat_loop(self) -> None:
         """Background loop dispatching telemetry heartbeats to the registry."""
@@ -84,10 +121,20 @@ class BaseSwarmWorker(ABC):
         """
         return 10.0
 
-    @abstractmethod
     async def process_task(self, task_payload: dict) -> dict:
         """
-        Abstract execution hook for domain specialists (GPU LoRA, RAG, SQL, MCP).
+        Execution hook for domain specialists (GPU LoRA, RAG, SQL, MCP).
+        Extracts run_id from the payload and injects it into LangChain callback config.
+        """
+        run_id = task_payload.get("run_id")
+        config = {"run_id": run_id} if run_id else {}
+        
+        return await self._execute_specialized_task(task_payload, config)
+
+    @abstractmethod
+    async def _execute_specialized_task(self, task_payload: dict, config: dict) -> dict:
+        """
+        Abstract execution hook for domain specialists.
         Must receive a minimal task payload and return a structured result dictionary.
         """
         ...

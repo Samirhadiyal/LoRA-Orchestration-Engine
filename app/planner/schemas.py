@@ -4,7 +4,7 @@ from typing import Literal
 from pydantic import BaseModel, Field
 
 # Allowed tools that the Orchestration Engine supports
-ToolType = Literal["rag_search", "sql_query", "lora_adapter", "direct_llm"]
+ToolType = Literal["rag_search", "sql_query", "lora_adapter", "direct_llm", "swarm_delegate"]
 
 class TaskStep(BaseModel):
     step_number: int = Field(description="Order of execution, starting at 1")

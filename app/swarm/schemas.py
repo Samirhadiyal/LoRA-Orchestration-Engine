@@ -1,4 +1,4 @@
-﻿# Path: app/swarm/schemas.py
+# Path: app/swarm/schemas.py
 from typing import Any
 
 from pydantic import BaseModel, Field
@@ -10,6 +10,7 @@ class SwarmTask(BaseModel):
     step_id: str
     action: str
     metadata: dict[str, Any] = Field(default_factory=dict)
+    run_id: str | None = None
 
 
 class SwarmResult(BaseModel):

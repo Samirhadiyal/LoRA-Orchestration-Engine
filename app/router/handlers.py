@@ -16,87 +16,6 @@ logger = logging.getLogger(__name__)
 lora_manager = LoRAManager()
 
 
-class SwarmHandler:
-    """
-    Phase 6B Track B: Swarm Delegation Handler.
-
-    Delegates step execution to background specialized swarm workers via SwarmMessageBus.
-    Adheres strictly to the immutable RouteHandler protocol:
-        async def execute(self, state: ExecutionState, step: ExecutionStep) -> ExecutionState
-    """
-
-    def __init__(self, message_bus: Any = None, default_timeout_seconds: float = 30.0):
-        self.message_bus = message_bus
-        self.default_timeout_seconds = default_timeout_seconds
-
-    def _is_swarm_enabled(self) -> bool:
-        """Checks environment override NEUROMESH_SWARM_ENABLED."""
-        env_val = os.getenv("NEUROMESH_SWARM_ENABLED", "").strip().lower()
-        return env_val in ("true", "1", "yes")
-
-    async def execute(self, state: ExecutionState, step: ExecutionStep) -> ExecutionState:
-        """
-        Dispatches minimal task payload to the SwarmMessageBus and awaits worker result.
-        Never sends the full ExecutionState over the wire.
-        """
-        if not self._is_swarm_enabled() or self.message_bus is None:
-            logger.warning(
-                "SwarmHandler invoked while swarm is disabled or message_bus is uninitialized (step=%s).",
-                step.step_id,
-            )
-            step.status = StepStatus.FAILED
-            state.error = "Swarm execution disabled or uninitialized."
-            return state
-
-        task_id = str(uuid.uuid4())
-        step.status = StepStatus.RUNNING
-        logger.info("Dispatching step '%s' to Swarm (task_id=%s)", step.step_id, task_id)
-
-        try:
-            # 1. Dispatch minimal task payload (never serialize full state)
-            task_payload = {
-                "task_id": task_id,
-                "step_id": step.step_id,
-                "action": step.action,
-                "metadata": getattr(step, "metadata", {}) or {},
-            }
-            await self.message_bus.publish_task(worker_id="swarm-pool", payload=task_payload)
-
-            # 2. Await worker result from message bus with timeout
-            result_data = await self.message_bus.listen_for_result(
-                task_id=task_id, timeout=self.default_timeout_seconds
-            )
-
-            if not result_data or not result_data.get("success", False):
-                err_msg = (
-                    result_data.get("error")
-                    if result_data
-                    else "Swarm worker timed out or returned no result."
-                )
-                logger.error("Swarm execution failed for step '%s': %s", step.step_id, err_msg)
-                step.status = StepStatus.FAILED
-                state.error = err_msg
-                return state
-
-            # 3. Apply worker output back to canonical state
-            worker_output = result_data.get("result", {})
-            step.result = worker_output
-            step.status = StepStatus.COMPLETED
-
-            # Store in tool_results so ContextOptimizer V2 processes it
-            if not hasattr(state, "tool_results") or state.tool_results is None:
-                state.tool_results = []
-            state.tool_results.append({step.step_id: worker_output})
-
-            logger.info("Swarm step '%s' completed successfully.", step.step_id)
-            return state
-
-        except (RuntimeError, TimeoutError, OSError, ValueError) as exc:
-            logger.error("Error during SwarmHandler execution for step '%s': %s", step.step_id, exc)
-            step.status = StepStatus.FAILED
-            state.error = str(exc)
-            return state
-
 
 class RouteHandler(Protocol):
     """Contract that all execution handlers must follow."""
@@ -125,7 +44,7 @@ class RetrievalHandler:
             step.status = StepStatus.COMPLETED
             step.result = {"status": "success", "chunks_retrieved": len(search_results)}
             
-        except (ConnectionError, RuntimeError) as e:
+        except Exception as e:
             logger.warning("RAG retrieval unavailable; continuing with empty context: %s", e)
             state.retrieved_context = (
                 "No external knowledge base context available "
@@ -265,13 +184,16 @@ class SwarmHandler:
         logger.info("Dispatching step '%s' to Swarm (task_id=%s)", step.step_id, task_id)
 
         try:
+            metadata = getattr(step, "metadata", {}) or {}
+            run_id = metadata.get("run_id") or getattr(state, "run_id", None)
             task_payload = {
                 "task_id": task_id,
                 "step_id": step.step_id,
                 "action": step.action,
-                "metadata": getattr(step, "metadata", {}) or {},
+                "metadata": metadata,
+                "run_id": run_id,
             }
-            await self.message_bus.publish_task(worker_id="swarm-pool", payload=task_payload)
+            await self.message_bus.publish_task(worker_id="sql-edge-01", payload=task_payload)
 
             result_data = await self.message_bus.listen_for_result(
                 task_id=task_id, timeout=self.default_timeout_seconds

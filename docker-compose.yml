@@ -1,4 +1,4 @@
-﻿# Path: docker-compose.yml
+# Path: docker-compose.yml
 
 services:
   # 1. Message Broker
@@ -44,13 +44,18 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+    user: root
+    command: sh -c "pip install peft && uvicorn app.main:app --host 0.0.0.0 --port 8000"
     ports:
       - "8000:8000"
+    volumes:
+      - ./app:/app/app
     environment:
       - NEUROMESH_SWARM_ENABLED=true
       - REDIS_URL=redis://redis:6379/0
       - DATABASE_URL=postgresql://neuromesh:neuromesh_password@postgres:5432/neuromesh_db
       - QDRANT_URL=http://qdrant:6333
+      - LLM_API_KEY=dummy_api_key_to_pass_validation
     depends_on:
       redis:
         condition: service_healthy
@@ -64,6 +69,8 @@ services:
     build:
       context: .
       dockerfile: docker/Dockerfile.edge
+    volumes:
+      - ./app:/app/app
     environment:
       - NEUROMESH_MODE=edge
       - REDIS_URL=redis://redis:6379/0

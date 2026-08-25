@@ -46,7 +46,7 @@ class RAGWorker(BaseSwarmWorker):
         """
         return self.profile.load
 
-    async def process_task(self, task_payload: dict) -> dict:
+    async def _execute_specialized_task(self, task_payload: dict, config: dict) -> dict:
         """
         Executes document retrieval for a delegated SwarmTask payload.
 

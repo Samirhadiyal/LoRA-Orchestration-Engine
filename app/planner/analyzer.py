@@ -20,8 +20,8 @@ class TaskAnalyzer:
                 ),
                 TaskStep(
                     step_number=2,
-                    tool="direct_llm",
-                    description="Generate the final response",
+                    tool="swarm_delegate",
+                    description="Delegate SQL log analysis to swarm worker",
                     query_input=query
                 )
             ]

@@ -1,4 +1,4 @@
-﻿# Path: app/swarm/workers/sql_worker.py
+# Path: app/swarm/workers/sql_worker.py
 import logging
 import time
 from typing import Any
@@ -43,7 +43,7 @@ class SQLWorker(BaseSwarmWorker):
         """Returns estimated database connection pool / query load percentage."""
         return self.profile.load
 
-    async def process_task(self, task_payload: dict) -> dict:
+    async def _execute_specialized_task(self, task_payload: dict, config: dict) -> dict:
         """
         Executes read-only SQL queries for a delegated SwarmTask payload.
 

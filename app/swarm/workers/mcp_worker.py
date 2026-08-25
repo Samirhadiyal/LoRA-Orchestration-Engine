@@ -1,4 +1,4 @@
-﻿# Path: app/swarm/workers/mcp_worker.py
+# Path: app/swarm/workers/mcp_worker.py
 import logging
 import time
 from typing import Any
@@ -43,7 +43,7 @@ class MCPWorker(BaseSwarmWorker):
         """Returns estimated network I/O and concurrent tool execution load."""
         return self.profile.load
 
-    async def process_task(self, task_payload: dict) -> dict:
+    async def _execute_specialized_task(self, task_payload: dict, config: dict) -> dict:
         """
         Executes external MCP tool lookups for a delegated SwarmTask payload.
 
