@@ -1,6 +1,6 @@
-# app/services/orchestration_service.py
 import uuid
 from typing import Any
+from langsmith.run_helpers import get_current_run_tree
 
 from app.planner.analyzer import TaskAnalyzer  # Engineer A's code!
 from app.router.graph import pipeline_graph
@@ -21,11 +21,19 @@ class OrchestrationService:
         analyzer = TaskAnalyzer()
         real_plan = await analyzer.analyze_query(user_query)
         
+        # Capture current run ID from LangSmith for distributed tracing
+        current_run = get_current_run_tree()
+        run_id = str(current_run.id) if current_run else str(uuid.uuid4())
+        
         # 2. Map Engineer A's "TaskStep" into Engineer B's "ExecutionStep"
         execution_steps = [
             ExecutionStep(
                 step_id=f"step_{step.step_number}", 
-                action=step.tool
+                action=step.tool,
+                metadata={
+                    "worker_capability": getattr(step, "worker_capability", None),
+                    "run_id": run_id
+                }
             )
             for step in real_plan.steps
         ]

@@ -3,6 +3,9 @@ import os
 import uuid
 from typing import Any, Protocol
 
+from langsmith import traceable
+
+from app.llm.client import get_llm_client, DEFAULT_MODEL
 from app.llm.exceptions import AdapterLoadError, AdapterNotFoundError
 from app.llm.lora_manager import LoRAManager
 from app.retrieval.search import hybrid_search  # Phase 3 Qdrant/BM25 integration
@@ -140,10 +143,58 @@ class ExpertHandler:
 
 
 class GenerationHandler:
+    @traceable(name="Synthesis Generation")
     async def execute(self, state: ExecutionState, step: ExecutionStep) -> ExecutionState:
-        state.final_response = "This is a mock final response based on retrieved data and tools."
-        step.status = StepStatus.COMPLETED
-        step.result = "Generation successful"
+        logger.info(f"Executing GenerationHandler for step {step.step_id}")
+        step.status = StepStatus.IN_PROGRESS
+        
+        try:
+            # 1. Gather context
+            context_parts = []
+            if state.retrieved_context:
+                context_parts.append(f"--- RAG CONTEXT ---\n{state.retrieved_context}")
+                
+            tool_results = getattr(state, "tool_results", {})
+            if isinstance(tool_results, list):
+                for tr in tool_results:
+                    context_parts.append(f"--- TOOL RESULT ---\n{tr}")
+            elif isinstance(tool_results, dict):
+                for step_id, tr in tool_results.items():
+                    context_parts.append(f"--- TOOL RESULT ({step_id}) ---\n{tr}")
+            
+            full_context = "\n\n".join(context_parts)
+            
+            system_prompt = (
+                "You are the NeuroMesh Synthesizer AI.\n"
+                "Your job is to answer the user's query using ONLY the provided context and tool results.\n"
+                "If the context contains errors, mention them gracefully.\n"
+                "If you don't know the answer based on the context, say so.\n"
+            )
+            
+            prompt = f"USER QUERY: {state.user_query}\n\n{full_context}"
+            
+            # 2. Call LLM
+            llm = await get_llm_client()
+            response = await llm.chat.completions.create(
+                model=DEFAULT_MODEL,
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": prompt}
+                ],
+                temperature=0.3
+            )
+            
+            # 3. Store result
+            state.final_response = response.choices[0].message.content
+            step.status = StepStatus.COMPLETED
+            step.result = {"status": "success", "message": "Generation completed"}
+            
+        except Exception as e:
+            logger.error(f"GenerationHandler failed: {e}")
+            step.status = StepStatus.FAILED
+            step.error = str(e)
+            state.error = f"Synthesis failed: {e}"
+            
         return state
 
 
@@ -186,6 +237,9 @@ class SwarmHandler:
         try:
             metadata = getattr(step, "metadata", {}) or {}
             run_id = metadata.get("run_id") or getattr(state, "run_id", None)
+            capability = metadata.get("worker_capability") or "sql"
+            worker_id = f"{capability}-edge-01"
+            
             task_payload = {
                 "task_id": task_id,
                 "step_id": step.step_id,
@@ -193,7 +247,7 @@ class SwarmHandler:
                 "metadata": metadata,
                 "run_id": run_id,
             }
-            await self.message_bus.publish_task(worker_id="sql-edge-01", payload=task_payload)
+            await self.message_bus.publish_task(worker_id=worker_id, payload=task_payload)
 
             result_data = await self.message_bus.listen_for_result(
                 task_id=task_id, timeout=self.default_timeout_seconds
