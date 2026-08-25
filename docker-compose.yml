@@ -44,7 +44,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    user: roott
+    user: root
     ports:
       - "8000:8000"
     environment:
