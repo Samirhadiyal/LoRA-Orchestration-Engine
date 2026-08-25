@@ -70,7 +70,7 @@ class TaskAnalyzer:
                 )
                 
             return plan
-        except Exception as e:
+        except (ValidationError, ValueError, KeyError) as e:
             logger.error(f"Planner failed to generate valid JSON plan: {e}. Falling back to default plan.")
             return ExecutionPlan(
                 user_intent=query,

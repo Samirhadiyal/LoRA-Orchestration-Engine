@@ -81,7 +81,7 @@ class BaseSwarmWorker(ABC):
                         result_dict = await self.process_task(task)
                         success = True
                         error = None
-                    except Exception as e:
+                    except (asyncio.TimeoutError, ConnectionError, RuntimeError) as e:
                         logger.exception("Task processing failed")
                         result_dict = {}
                         success = False
@@ -95,7 +95,7 @@ class BaseSwarmWorker(ABC):
                         "result": result_dict,
                         "error": error
                     })
-            except Exception as e:
+            except (asyncio.TimeoutError, ConnectionError, RuntimeError) as e:
                 logger.error("Error in task loop: %s", e)
                 await asyncio.sleep(1.0)
 

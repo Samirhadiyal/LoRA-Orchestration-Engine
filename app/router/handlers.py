@@ -47,7 +47,7 @@ class RetrievalHandler:
             step.status = StepStatus.COMPLETED
             step.result = {"status": "success", "chunks_retrieved": len(search_results)}
             
-        except Exception as e:
+        except (ConnectionError, TimeoutError, ValueError) as e:
             logger.warning("RAG retrieval unavailable; continuing with empty context: %s", e)
             state.retrieved_context = (
                 "No external knowledge base context available "
@@ -189,7 +189,7 @@ class GenerationHandler:
             step.status = StepStatus.COMPLETED
             step.result = {"status": "success", "message": "Generation completed"}
             
-        except Exception as e:
+        except (RuntimeError, ValueError, ConnectionError) as e:
             logger.error(f"GenerationHandler failed: {e}")
             step.status = StepStatus.FAILED
             step.error = str(e)
