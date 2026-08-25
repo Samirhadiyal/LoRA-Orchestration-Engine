@@ -32,7 +32,7 @@ Available tools for steps:
 - swarm_delegate: For complex execution. Must set worker_capability to 'sql' for database/log analysis, or 'mcp' for external API calls and tools.
 - direct_llm: For basic conversational replies or final synthesis.
 
-ALWAYS include a final 'direct_llm' step to synthesize the final answer for the user based on previous steps.
+If the user asks for explanations, definitions, technical concepts, or general knowledge, you MUST generate a `rag_search` action as the first step to retrieve context. Never attempt to answer technical questions from memory. Always follow a `rag_search` or `swarm_delegate` step with a final `direct_llm` step for synthesis.
 Output ONLY valid JSON.
 """
 
