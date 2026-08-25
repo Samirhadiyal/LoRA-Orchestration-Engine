@@ -49,10 +49,18 @@ services:
       - "8000:8000"
     environment:
       - NEUROMESH_SWARM_ENABLED=true
-      - REDIS_URL=redis://redis:6379/0
-      - DATABASE_URL=postgresql://neuromesh:neuromesh_password@postgres:5432/neuromesh_db
-      - QDRANT_URL=http://qdrant:6333
-      - LLM_API_KEY=dummy_api_key_to_pass_validation
+      - DATABASE_URL=${DATABASE_URL}
+      - REDIS_URL=${REDIS_URL:-redis://redis:6379/0}
+      - QDRANT_URL=${QDRANT_URL:-http://qdrant:6333}
+      - LLM_BASE_URL=${LLM_BASE_URL}
+      - LLM_API_KEY=${LLM_API_KEY}
+      - LLM_MODEL=${LLM_MODEL}
+      - LANGSMITH_TRACING=true
+      - LANGSMITH_API_KEY=${LANGSMITH_API_KEY}
+      - LANGSMITH_PROJECT=${LANGSMITH_PROJECT:-neuromesh-swarm}
+      - LANGCHAIN_TRACING_V2=true
+      - LANGCHAIN_API_KEY=${LANGSMITH_API_KEY}
+      - LANGCHAIN_PROJECT=${LANGSMITH_PROJECT:-neuromesh-swarm}
     depends_on:
       redis:
         condition: service_healthy
@@ -68,7 +76,18 @@ services:
       dockerfile: docker/Dockerfile.edge
     environment:
       - NEUROMESH_MODE=edge
-      - REDIS_URL=redis://redis:6379/0
+      - DATABASE_URL=${DATABASE_URL}
+      - REDIS_URL=${REDIS_URL:-redis://redis:6379/0}
+      - QDRANT_URL=${QDRANT_URL:-http://qdrant:6333}
+      - LLM_BASE_URL=${LLM_BASE_URL}
+      - LLM_API_KEY=${LLM_API_KEY}
+      - LLM_MODEL=${LLM_MODEL}
+      - LANGSMITH_TRACING=true
+      - LANGSMITH_API_KEY=${LANGSMITH_API_KEY}
+      - LANGSMITH_PROJECT=${LANGSMITH_PROJECT:-neuromesh-swarm}
+      - LANGCHAIN_TRACING_V2=true
+      - LANGCHAIN_API_KEY=${LANGSMITH_API_KEY}
+      - LANGCHAIN_PROJECT=${LANGSMITH_PROJECT:-neuromesh-swarm}
       # Uses SQLite via EdgeConfig to save RAM, but listens to central Redis queue
     depends_on:
       redis:
