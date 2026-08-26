@@ -5,8 +5,9 @@ from qdrant_client.models import Distance, PointStruct, VectorParams
 from rank_bm25 import BM25Okapi
 
 from app.embeddings.bge import generate_embeddings
+from app.core.config import settings
 
-qdrant = QdrantClient(host="localhost", port=6333, check_compatibility=False)
+qdrant = QdrantClient(url=settings.QDRANT_URL, check_compatibility=False)
 COLLECTION_NAME = "neuromesh_knowledge"
 
 # In-memory store for BM25 sparse search
