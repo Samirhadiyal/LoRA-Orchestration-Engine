@@ -25,3 +25,4 @@ async def chat_endpoint(request: ChatRequest):
         return response
     except Exception as e:  # noqa: BLE001
         raise HTTPException(status_code=500, detail=str(e))
+

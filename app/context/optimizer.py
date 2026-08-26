@@ -90,7 +90,7 @@ class ContextOptimizer:
         except ValueError:
             return list(dict.fromkeys(chunks))
 
-        kept_indices = []
+        kept_indices: list[int] = []
         for index in range(len(chunks)):
             is_duplicate = any(
                 sim_matrix[index][kept_index] >= self.similarity_threshold

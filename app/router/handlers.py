@@ -1,6 +1,11 @@
 import logging
-from typing import Protocol
+import os
+import uuid
+from typing import Any, Protocol
 
+from langsmith import traceable
+
+from app.llm.client import get_llm_client, DEFAULT_MODEL
 from app.llm.exceptions import AdapterLoadError, AdapterNotFoundError
 from app.llm.lora_manager import LoRAManager
 from app.retrieval.search import hybrid_search  # Phase 3 Qdrant/BM25 integration
@@ -12,6 +17,7 @@ logger = logging.getLogger(__name__)
 
 # Instantiate globally so the VRAM cache persists across API requests
 lora_manager = LoRAManager()
+
 
 
 class RouteHandler(Protocol):
@@ -41,7 +47,7 @@ class RetrievalHandler:
             step.status = StepStatus.COMPLETED
             step.result = {"status": "success", "chunks_retrieved": len(search_results)}
             
-        except (ConnectionError, RuntimeError) as e:
+        except (ConnectionError, TimeoutError, ValueError) as e:
             logger.warning("RAG retrieval unavailable; continuing with empty context: %s", e)
             state.retrieved_context = (
                 "No external knowledge base context available "
@@ -137,8 +143,145 @@ class ExpertHandler:
 
 
 class GenerationHandler:
+    @traceable(name="Synthesis Generation")
     async def execute(self, state: ExecutionState, step: ExecutionStep) -> ExecutionState:
-        state.final_response = "This is a mock final response based on retrieved data and tools."
-        step.status = StepStatus.COMPLETED
-        step.result = "Generation successful"
+        logger.info(f"Executing GenerationHandler for step {step.step_id}")
+        step.status = StepStatus.IN_PROGRESS
+        
+        try:
+            # 1. Gather context
+            context_parts = []
+            if state.retrieved_context:
+                context_parts.append(f"--- RAG CONTEXT ---\n{state.retrieved_context}")
+                
+            tool_results = getattr(state, "tool_results", {})
+            if isinstance(tool_results, list):
+                for tr in tool_results:
+                    context_parts.append(f"--- TOOL RESULT ---\n{tr}")
+            elif isinstance(tool_results, dict):
+                for step_id, tr in tool_results.items():
+                    context_parts.append(f"--- TOOL RESULT ({step_id}) ---\n{tr}")
+            
+            full_context = "\n\n".join(context_parts)
+            
+            system_prompt = (
+                "You are the NeuroMesh Synthesizer AI.\n"
+                "Your job is to answer the user's query using ONLY the provided context and tool results.\n"
+                "If the context contains errors, mention them gracefully.\n"
+                "If you don't know the answer based on the context, say so.\n"
+            )
+            
+            prompt = f"USER QUERY: {state.user_query}\n\n{full_context}"
+            
+            # 2. Call LLM
+            llm = await get_llm_client()
+            response = await llm.chat.completions.create(
+                model=DEFAULT_MODEL,
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": prompt}
+                ],
+                temperature=0.3
+            )
+            
+            # 3. Store result
+            state.final_response = response.choices[0].message.content
+            step.status = StepStatus.COMPLETED
+            step.result = {"status": "success", "message": "Generation completed"}
+            
+        except (RuntimeError, ValueError, ConnectionError) as e:
+            logger.error(f"GenerationHandler failed: {e}")
+            step.status = StepStatus.FAILED
+            step.error = str(e)
+            state.error = f"Synthesis failed: {e}"
+            
         return state
+
+
+class SwarmHandler:
+    """
+    Phase 6B Track B: Swarm Delegation Handler.
+
+    Delegates step execution to background specialized swarm workers via SwarmMessageBus.
+    Adheres strictly to the immutable RouteHandler protocol:
+        async def execute(self, state: ExecutionState, step: ExecutionStep) -> ExecutionState
+    """
+
+    def __init__(self, message_bus: Any = None, default_timeout_seconds: float = 30.0):
+        self.message_bus = message_bus
+        self.default_timeout_seconds = default_timeout_seconds
+
+    def _is_swarm_enabled(self) -> bool:
+        """Checks environment override NEUROMESH_SWARM_ENABLED."""
+        env_val = os.getenv("NEUROMESH_SWARM_ENABLED", "").strip().lower()
+        return env_val in ("true", "1", "yes")
+
+    async def execute(self, state: ExecutionState, step: ExecutionStep) -> ExecutionState:
+        """
+        Dispatches minimal task payload to the SwarmMessageBus and awaits worker result.
+        Never sends the full ExecutionState over the wire.
+        """
+        if not self._is_swarm_enabled() or self.message_bus is None:
+            logger.warning(
+                "SwarmHandler invoked while swarm is disabled or message_bus is uninitialized (step=%s).",
+                step.step_id,
+            )
+            step.status = StepStatus.FAILED
+            state.error = "Swarm execution disabled or uninitialized."
+            return state
+
+        task_id = str(uuid.uuid4())
+        step.status = StepStatus.RUNNING
+        logger.info("Dispatching step '%s' to Swarm (task_id=%s)", step.step_id, task_id)
+
+        try:
+            metadata = getattr(step, "metadata", {}) or {}
+            run_id = metadata.get("run_id") or getattr(state, "run_id", None)
+            capability = metadata.get("worker_capability") or "sql"
+            worker_id = f"{capability}-edge-01"
+            
+            task_payload = {
+                "task_id": task_id,
+                "step_id": step.step_id,
+                "action": step.action,
+                "metadata": metadata,
+                "run_id": run_id,
+            }
+            await self.message_bus.publish_task(worker_id=worker_id, payload=task_payload)
+
+            result_data = await self.message_bus.listen_for_result(
+                task_id=task_id, timeout=self.default_timeout_seconds
+            )
+
+            if not result_data or not result_data.get("success", False):
+                err_msg = (
+                    result_data.get("error")
+                    if result_data
+                    else "Swarm worker timed out or returned no result."
+                )
+                logger.error("Swarm execution failed for step '%s': %s", step.step_id, err_msg)
+                step.status = StepStatus.FAILED
+                state.error = err_msg
+                return state
+
+            worker_output = result_data.get("result", {})
+            step.result = worker_output
+            step.status = StepStatus.COMPLETED
+
+            # Robust state update: handle both dict and list schemas for tool_results
+            if getattr(state, "tool_results", None) is None:
+                state.tool_results = {}
+            
+            if isinstance(state.tool_results, list):
+                state.tool_results.append({step.step_id: worker_output})
+            elif isinstance(state.tool_results, dict):
+                state.tool_results[step.step_id] = worker_output
+
+            logger.info("Swarm step '%s' completed successfully.", step.step_id)
+            return state
+
+        except (RuntimeError, TimeoutError, OSError, ValueError) as exc:
+            logger.error("Error during SwarmHandler execution for step '%s': %s", step.step_id, exc)
+            step.status = StepStatus.FAILED
+            state.error = str(exc)
+            return state

@@ -4,13 +4,14 @@ from typing import Literal
 from pydantic import BaseModel, Field
 
 # Allowed tools that the Orchestration Engine supports
-ToolType = Literal["rag_search", "sql_query", "lora_adapter", "direct_llm"]
+ToolType = Literal["rag_search", "sql_query", "lora_adapter", "direct_llm", "swarm_delegate"]
 
 class TaskStep(BaseModel):
     step_number: int = Field(description="Order of execution, starting at 1")
     tool: ToolType = Field(description="The tool or execution path required for this step")
     description: str = Field(description="Brief explanation of what this step accomplishes")
     query_input: str = Field(description="The processed input string passed to the selected tool")
+    worker_capability: str | None = Field(default=None, description="Capability needed if tool is swarm_delegate (e.g., 'sql' or 'mcp')")
 
 class ExecutionPlan(BaseModel):
     user_intent: str = Field(description="High-level summary of what the user is trying to achieve")

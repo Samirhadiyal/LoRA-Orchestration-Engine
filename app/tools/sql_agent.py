@@ -1,6 +1,6 @@
 import json
 from typing import Any
-
+from uuid import UUID
 from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 from sqlmodel import Session
@@ -93,4 +93,4 @@ class SQLAgent:
                 "success": False,
                 "error": str(e),
                 "sql_generated": sql_query if 'sql_query' in locals() else None
-            }
+            }
