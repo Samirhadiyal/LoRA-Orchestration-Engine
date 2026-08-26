@@ -55,10 +55,10 @@ services:
       - LLM_BASE_URL=${LLM_BASE_URL}
       - LLM_API_KEY=${LLM_API_KEY}
       - LLM_MODEL=${LLM_MODEL}
-      - LANGSMITH_TRACING=true
+      - LANGSMITH_TRACING=false
       - LANGSMITH_API_KEY=${LANGSMITH_API_KEY}
       - LANGSMITH_PROJECT=${LANGSMITH_PROJECT:-neuromesh-swarm}
-      - LANGCHAIN_TRACING_V2=true
+      - LANGCHAIN_TRACING_V2=false
       - LANGCHAIN_API_KEY=${LANGSMITH_API_KEY}
       - LANGCHAIN_PROJECT=${LANGSMITH_PROJECT:-neuromesh-swarm}
     depends_on:
@@ -82,10 +82,10 @@ services:
       - LLM_BASE_URL=${LLM_BASE_URL}
       - LLM_API_KEY=${LLM_API_KEY}
       - LLM_MODEL=${LLM_MODEL}
-      - LANGSMITH_TRACING=true
+      - LANGSMITH_TRACING=false
       - LANGSMITH_API_KEY=${LANGSMITH_API_KEY}
       - LANGSMITH_PROJECT=${LANGSMITH_PROJECT:-neuromesh-swarm}
-      - LANGCHAIN_TRACING_V2=true
+      - LANGCHAIN_TRACING_V2=false
       - LANGCHAIN_API_KEY=${LANGSMITH_API_KEY}
       - LANGCHAIN_PROJECT=${LANGSMITH_PROJECT:-neuromesh-swarm}
       # Uses SQLite via EdgeConfig to save RAM, but listens to central Redis queue

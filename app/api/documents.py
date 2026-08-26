@@ -72,6 +72,18 @@ async def upload_document(
         db.commit()
 
         # NOTE: At this point, the chunks are ready to be passed to Engineer B's Embeddings module!
+        from app.retrieval.indexer import index_chunks
+        
+        # Prepare chunks for Qdrant indexing
+        qdrant_chunks = []
+        for chunk in chunks_data:
+            qdrant_chunks.append({
+                "doc_id": str(db_document.id),
+                "text": chunk.text,
+                "metadata": chunk.chunk_metadata
+            })
+            
+        index_chunks(qdrant_chunks)
 
         return {
             "status": "success",
