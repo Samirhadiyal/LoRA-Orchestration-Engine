@@ -5,9 +5,12 @@ from typing import Any, Protocol
 
 from langsmith import traceable
 
+from app.context.optimizer import ContextOptimizer
 from app.llm.client import get_llm_client, DEFAULT_MODEL
 from app.llm.exceptions import AdapterLoadError, AdapterNotFoundError
 from app.llm.lora_manager import LoRAManager
+from app.reasoning.citations import CitationGenerator
+from app.reasoning.reflection import ReflectionEngine
 from app.retrieval.search import hybrid_search  # Phase 3 Qdrant/BM25 integration
 from app.router.state import ExecutionState, ExecutionStep, StepStatus
 from app.tools.mcp_client import MCPClient
@@ -143,26 +146,30 @@ class ExpertHandler:
 
 
 class GenerationHandler:
+    def __init__(self):
+        self._optimizer = ContextOptimizer()
+        self._reflection = ReflectionEngine()
+        self._citation_gen = CitationGenerator()
+
     @traceable(name="Synthesis Generation")
     async def execute(self, state: ExecutionState, step: ExecutionStep) -> ExecutionState:
         logger.info(f"Executing GenerationHandler for step {step.step_id}")
         step.status = StepStatus.IN_PROGRESS
         
         try:
-            # 1. Gather context
-            context_parts = []
-            if state.retrieved_context:
-                context_parts.append(f"--- RAG CONTEXT ---\n{state.retrieved_context}")
-                
+            # 1. Use ContextOptimizer to deduplicate and pack context
+            tool_results_dict = {}
             tool_results = getattr(state, "tool_results", {})
             if isinstance(tool_results, list):
-                for tr in tool_results:
-                    context_parts.append(f"--- TOOL RESULT ---\n{tr}")
+                for i, tr in enumerate(tool_results):
+                    tool_results_dict[f"tool_{i}"] = tr
             elif isinstance(tool_results, dict):
-                for step_id, tr in tool_results.items():
-                    context_parts.append(f"--- TOOL RESULT ({step_id}) ---\n{tr}")
+                tool_results_dict = tool_results
             
-            full_context = "\n\n".join(context_parts)
+            optimized_context = self._optimizer.optimize(
+                retrieved_context=state.retrieved_context,
+                tool_results=tool_results_dict,
+            )
             
             system_prompt = (
                 "You are the NeuroMesh Synthesizer AI.\n"
@@ -171,7 +178,7 @@ class GenerationHandler:
                 "If you don't know the answer based on the context, say so.\n"
             )
             
-            prompt = f"USER QUERY: {state.user_query}\n\n{full_context}"
+            prompt = f"USER QUERY: {state.user_query}\n\n{optimized_context}"
             
             # 2. Call LLM
             llm = await get_llm_client()
@@ -184,10 +191,42 @@ class GenerationHandler:
                 temperature=0.3
             )
             
-            # 3. Store result
-            state.final_response = response.choices[0].message.content
+            generated_answer = response.choices[0].message.content
+            state.final_response = generated_answer
+            
+            # 3. Reflection pass — verify faithfulness
+            reflection_result = await self._reflection.verify(
+                answer=generated_answer,
+                context=optimized_context,
+                user_query=state.user_query,
+            )
+            logger.info(
+                "Reflection score: %.2f (faithful=%s)",
+                reflection_result.get("confidence_score", 0),
+                reflection_result.get("is_faithful", True),
+            )
+            
+            # 4. Citation generation — map answer to source chunks
+            raw_chunks = []
+            if state.retrieved_context:
+                # Parse the retrieved context back into chunk-like dicts
+                for part in state.retrieved_context.split("\n\n"):
+                    if part.strip():
+                        raw_chunks.append({"text": part.strip(), "chunk_id": "", "doc_id": ""})
+            
+            citations = self._citation_gen.generate(
+                answer=generated_answer,
+                retrieved_chunks=raw_chunks,
+            )
+            state.citations = citations
+            
             step.status = StepStatus.COMPLETED
-            step.result = {"status": "success", "message": "Generation completed"}
+            step.result = {
+                "status": "success",
+                "message": "Generation completed",
+                "reflection": reflection_result,
+                "citation_count": len(citations),
+            }
             
         except (RuntimeError, ValueError, ConnectionError) as e:
             logger.error(f"GenerationHandler failed: {e}")

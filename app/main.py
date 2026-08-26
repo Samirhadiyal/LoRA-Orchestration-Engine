@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from sqlmodel import SQLModel
 
-from app.api import documents, orchestrate, retrieval, sessions
+from app.api import chat_stream, documents, evaluation, orchestrate, retrieval, sessions
 from app.core.config import settings
 from app.database.engine import engine
 
@@ -29,6 +29,8 @@ app.include_router(documents.router, prefix=settings.API_V1_STR)
 app.include_router(sessions.router, prefix=settings.API_V1_STR)
 app.include_router(retrieval.router, prefix=settings.API_V1_STR)
 app.include_router(orchestrate.router, prefix=settings.API_V1_STR)
+app.include_router(chat_stream.router, prefix=settings.API_V1_STR)
+app.include_router(evaluation.router, prefix=settings.API_V1_STR)
 
 @app.get("/health", tags=["System"])
 async def health_check():
@@ -36,4 +38,4 @@ async def health_check():
         "status": "healthy",
         "project": settings.PROJECT_NAME,
         "version": settings.VERSION
-    }
+    }

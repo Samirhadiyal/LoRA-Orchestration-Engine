@@ -93,6 +93,18 @@ services:
       redis:
         condition: service_healthy
 
+  # 6. Next.js Frontend
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=http://router:8000/api/v1
+    depends_on:
+      - router
+
 volumes:
   redis_data:
   qdrant_data:
