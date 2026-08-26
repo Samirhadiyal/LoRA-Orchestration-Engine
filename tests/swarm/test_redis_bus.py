@@ -1,6 +1,8 @@
 ﻿# Path: tests/swarm/test_redis_bus.py
-import pytest
 from unittest.mock import AsyncMock, patch
+
+import pytest
+
 from app.swarm.bus import RedisSwarmBus
 
 

@@ -1,6 +1,6 @@
 import json
 from typing import Any
-from uuid import UUID
+
 from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 from sqlmodel import Session

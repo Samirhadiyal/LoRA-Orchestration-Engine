@@ -1,12 +1,13 @@
 ﻿import asyncio
 import logging
 import os
-from app.swarm.registry import WorkerRegistry
+
+from app.config.edge import EdgeConfig
 from app.swarm.bus import RedisSwarmBus
+from app.swarm.registry import WorkerRegistry
+from app.swarm.workers.mcp_worker import MCPWorker
 from app.swarm.workers.rag_worker import RAGWorker
 from app.swarm.workers.sql_worker import SQLWorker
-from app.swarm.workers.mcp_worker import MCPWorker
-from app.config.edge import EdgeConfig
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)

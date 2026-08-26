@@ -5,7 +5,7 @@ from typing import Any, Protocol
 
 from langsmith import traceable
 
-from app.llm.client import get_llm_client, DEFAULT_MODEL
+from app.llm.client import DEFAULT_MODEL, get_llm_client
 from app.llm.exceptions import AdapterLoadError, AdapterNotFoundError
 from app.llm.lora_manager import LoRAManager
 from app.retrieval.search import hybrid_search  # Phase 3 Qdrant/BM25 integration

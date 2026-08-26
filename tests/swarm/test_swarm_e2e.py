@@ -136,6 +136,7 @@ async def test_e2e_swarm_router_delegation(swarm_environment, monkeypatch):
     _, _, handler = swarm_environment
 
     import uuid
+
     from app.planner.schemas import ExecutionPlan
     dummy_plan = ExecutionPlan(user_intent="test", requires_retrieval=False, steps=[])
     state = ExecutionState(request_id=uuid.uuid4(), plan=dummy_plan, user_query="Run full analysis", tool_results=[])
@@ -173,6 +174,7 @@ async def test_e2e_parallel_swarm_benchmark(swarm_environment, monkeypatch):
     ]
 
     import uuid
+
     from app.planner.schemas import ExecutionPlan
     dummy_plan = ExecutionPlan(user_intent="test", requires_retrieval=False, steps=[])
     
