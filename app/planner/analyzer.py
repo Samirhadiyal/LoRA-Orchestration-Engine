@@ -55,6 +55,9 @@ class TaskAnalyzer:
             )
             
             raw_json = response.choices[0].message.content
+            if raw_json is None:
+                raise ValueError("Planner returned an empty response.")
+
             plan = ExecutionPlan.model_validate_json(raw_json)
             
             # Ensure there's a final synthesis step if not present

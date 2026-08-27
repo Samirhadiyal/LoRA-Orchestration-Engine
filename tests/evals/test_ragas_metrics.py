@@ -1,4 +1,5 @@
 import os
+from typing import Any, cast
 
 import pytest
 from datasets import Dataset
@@ -20,7 +21,7 @@ OFFLINE_BENCHMARK_SCORES = {
 
 def _live_ragas_enabled() -> bool:
     api_key = os.environ.get("OPENAI_API_KEY", "")
-    return (
+    return bool(
         os.environ.get("NEUROMESH_RUN_LIVE_RAGAS") == "1"
         and api_key
         and not api_key.startswith("sk-mock-")
@@ -39,7 +40,7 @@ def test_neuromesh_ragas_benchmarks(rag_benchmark_dataset: Dataset):
             metrics=[context_precision, context_recall, faithfulness, answer_relevancy],
             raise_exceptions=False,
         )
-        scores = results.to_pandas().mean(numeric_only=True).to_dict()
+        scores = cast(Any, results).to_pandas().mean(numeric_only=True).to_dict()
     else:
         scores = OFFLINE_BENCHMARK_SCORES
 

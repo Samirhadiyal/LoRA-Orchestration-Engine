@@ -19,8 +19,8 @@ def reciprocal_rank_fusion(dense_results: list[dict], sparse_results: list[dict]
     """
     Combines dense vector results and sparse BM25 results using Reciprocal Rank Fusion (RRF).
     """
-    rrf_scores = {}
-    docs = {}
+    rrf_scores: dict[str, float] = {}
+    docs: dict[str, dict] = {}
 
     for rank, item in enumerate(dense_results):
         doc_id = item["text"]
@@ -51,18 +51,20 @@ def hybrid_search(query: str, top_k: int = 5) -> list[dict[str, Any]]:
         query=query_vector,
         limit=10
     )
-    dense_hits = [
-        {
-            "text": hit.payload.get("text", ""),
-            "doc_id": hit.payload.get("doc_id", ""),
-            "chunk_id": hit.payload.get("chunk_id", ""),
-            "metadata": hit.payload.get("metadata", {})
-        }
-        for hit in qdrant_response.points
-    ]
+    dense_hits: list[dict[str, Any]] = []
+    for hit in qdrant_response.points:
+        payload = hit.payload or {}
+        dense_hits.append(
+            {
+                "text": payload.get("text", ""),
+                "doc_id": payload.get("doc_id", ""),
+                "chunk_id": payload.get("chunk_id", ""),
+                "metadata": payload.get("metadata", {})
+            }
+        )
 
     # --- 2. Sparse BM25 Search ---
-    sparse_hits = []
+    sparse_hits: list[dict[str, Any]] = []
     if bm25_index and corpus_chunks:
         tokenized_query = query.lower().split()
         top_sparse_chunks = bm25_index.get_top_n(tokenized_query, corpus_chunks, n=10)

@@ -1,6 +1,7 @@
 ﻿import asyncio
+import json
 import logging
-from typing import Any
+from typing import Any, cast
 
 import redis.asyncio as redis
 from pydantic import ValidationError
@@ -28,25 +29,50 @@ class SwarmMessageBus:
             )
         return self._client
 
-    async def publish_task(self, stream_key: str, task: SwarmTask) -> str:
-        """Publishes a task payload into a Redis Stream via XADD."""
+    async def publish_task(
+        self,
+        stream_key: str | None = None,
+        task: SwarmTask | None = None,
+        *,
+        worker_id: str | None = None,
+        payload: dict[str, Any] | None = None,
+    ) -> str:
+        """Publishes a task payload into a Redis Stream via XADD.
+        Supports both direct SwarmTask object and worker_id/payload keyword invocation."""
         client = await self.get_client()
+
+        target_stream = stream_key or f"swarm:tasks:{worker_id}"
+
+        if task is not None:
+            task_obj = task
+        elif payload is not None:
+            await client.xadd(target_stream, {"payload": json.dumps(payload)})  # type: ignore[arg-type]
+            return str(payload.get("task_id", ""))
+        else:
+            raise ValueError("Either 'task' or 'payload' must be provided to publish_task")
+
         message_data: dict[str, str] = {
-            "task_id": task.task_id,
-            "execution_id": task.execution_id,
-            "step_id": task.step_id,
-            "required_capability": task.required_capability,
-            "payload": task.model_dump_json(),
+            "task_id": task_obj.task_id,
+            "execution_id": task_obj.execution_id,
+            "step_id": task_obj.step_id,
+            "required_capability": task_obj.required_capability,
+            "payload": task_obj.model_dump_json(),
         }
-        msg_id = await client.xadd(stream_key, message_data)  # type: ignore[arg-type]
+        msg_id = await client.xadd(target_stream, message_data)  # type: ignore[arg-type]
         return msg_id.decode("utf-8") if isinstance(msg_id, bytes) else str(msg_id)
 
-    async def publish_result(self, result: SwarmResult) -> int:
+    async def publish_result(self, result: SwarmResult | dict[str, Any]) -> int | bool:
         """Publishes execution result to a unique task result Pub/Sub channel."""
         client = await self.get_client()
+        if isinstance(result, dict):
+            task_id = str(result.get("task_id", ""))
+            subscribers: int = await client.publish(
+                f"swarm:results:{task_id}", json.dumps(result)
+            )
+            return subscribers > 0
+
         channel = f"swarm:results:{result.task_id}"
-        subscribers: int = await client.publish(channel, result.model_dump_json())
-        return subscribers
+        return await client.publish(channel, result.model_dump_json())
 
     async def acknowledge_task(
         self, stream_key: str, group_name: str, message_id: str
@@ -64,6 +90,26 @@ class SwarmMessageBus:
                 e,
             )
             return False
+
+    async def listen_for_task(self, worker_id: str, timeout: float = 1.0) -> dict[str, Any] | None:
+        """Polls the worker's dedicated task stream for new tasks."""
+        client = await self.get_client()
+        stream_key = f"swarm:tasks:{worker_id}"
+        try:
+            messages = cast(
+                list[tuple[Any, list[tuple[Any, dict[Any, Any]]]]],
+                await client.xread({stream_key: "0-0"}, count=1, block=int(timeout * 1000)),
+            )
+            if messages:
+                for _, stream_messages in messages:
+                    for _, data in stream_messages:
+                        payload_raw = data.get(b"payload") or data.get("payload")
+                        if isinstance(payload_raw, bytes):
+                            payload_raw = payload_raw.decode("utf-8")
+                        return json.loads(str(payload_raw))
+        except Exception as e:
+            logger.debug("Error listening for task on %s: %s", stream_key, e)
+        return None
 
     async def listen_for_result(
         self, task_id: str, timeout: float = 30.0
@@ -106,3 +152,6 @@ class SwarmMessageBus:
         if self._client:
             await self._client.aclose()
             self._client = None
+
+
+RedisSwarmBus = SwarmMessageBus

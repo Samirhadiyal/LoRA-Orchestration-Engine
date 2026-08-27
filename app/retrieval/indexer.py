@@ -1,18 +1,19 @@
 import uuid
+from typing import Any
 
 from qdrant_client import QdrantClient
 from qdrant_client.models import Distance, PointStruct, VectorParams
 from rank_bm25 import BM25Okapi
 
-from app.embeddings.bge import generate_embeddings
 from app.core.config import settings
+from app.embeddings.bge import generate_embeddings
 
 qdrant = QdrantClient(url=settings.QDRANT_URL, check_compatibility=False)
 COLLECTION_NAME = "neuromesh_knowledge"
 
 # In-memory store for BM25 sparse search
-bm25_index = None
-corpus_chunks = []
+bm25_index: BM25Okapi | None = None
+corpus_chunks: list[dict[str, Any]] = []
 
 def init_qdrant_collection():
     try:

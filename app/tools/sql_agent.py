@@ -47,7 +47,11 @@ class SQLAgent:
             temperature=0.0
         )
         
-        content = json.loads(response.choices[0].message.content)
+        raw_content = response.choices[0].message.content
+        if raw_content is None:
+            raise ValueError("LLM returned an empty SQL translation response.")
+
+        content = json.loads(raw_content)
         return content.get("sql_query", "")
 
     async def execute_query(self, natural_language_query: str) -> dict[str, Any]:
@@ -71,14 +75,9 @@ class SQLAgent:
 
             # 2. Execute against Postgres
             with Session(engine) as session:
-                result = session.exec(text(sql_query))
-                
-                # Fetch row records
-                if result.returns_rows:
-                    columns = result.keys()
-                    rows = [dict(zip(columns, row)) for row in result.fetchall()]
-                else:
-                    rows = []
+                result = session.execute(text(sql_query))
+                columns = result.keys()
+                rows = [dict(zip(columns, row)) for row in result.fetchall()]
 
             # 3. Return response dict
             return {

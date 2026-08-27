@@ -47,7 +47,11 @@ class BaseSwarmWorker(ABC):
         self._is_running = True
         await self.registry.register_worker(self.profile)
         self._heartbeat_task = asyncio.create_task(self._heartbeat_loop())
-        self._task_poll_task = asyncio.create_task(self._task_loop())
+        self._task_poll_task = (
+            asyncio.create_task(self._task_loop())
+            if hasattr(self.bus, "listen_for_task")
+            else None
+        )
         logger.info("Worker node online: %s | Capabilities: %s", self.profile.worker_id, self.profile.capabilities)
 
     async def stop(self) -> None:
@@ -60,10 +64,11 @@ class BaseSwarmWorker(ABC):
             except (asyncio.CancelledError, RuntimeError):
                 pass
                 
-        if getattr(self, "_task_poll_task", None):
-            self._task_poll_task.cancel()
+        task_poll_task = getattr(self, "_task_poll_task", None)
+        if task_poll_task is not None:
+            task_poll_task.cancel()
             try:
-                await self._task_poll_task
+                await task_poll_task
             except (asyncio.CancelledError, RuntimeError):
                 pass
 

@@ -1,5 +1,5 @@
 import uuid
-from typing import Any
+from typing import Any, cast
 
 from langsmith.run_helpers import get_current_run_tree
 
@@ -49,7 +49,7 @@ class OrchestrationService:
         )
         
         # 4. Execute the LangGraph workflow asynchronously
-        final_state_data = await pipeline_graph.ainvoke(initial_state)
+        final_state_data = await cast(Any, pipeline_graph).ainvoke(initial_state)
         
         # LangGraph returns a dictionary or the updated BaseModel depending on the version.
         if isinstance(final_state_data, dict):

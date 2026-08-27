@@ -1,10 +1,26 @@
 import asyncio
 
 import pytest
+
+pytest.importorskip("redis")
+
 from redis.exceptions import RedisError
+from redis.exceptions import ConnectionError as RedisConnectionError
 
 from app.swarm.bus import SwarmMessageBus
 from app.swarm.schemas import SwarmResult, SwarmTask
+
+
+async def require_redis_bus() -> SwarmMessageBus:
+    """Return a bus connected to Redis, or skip when local Redis is unavailable."""
+    bus = SwarmMessageBus()
+    client = await bus.get_client()
+    try:
+        await client.ping()
+    except RedisConnectionError:
+        await bus.close()
+        pytest.skip("Redis is not available on localhost:6379")
+    return bus
 
 
 @pytest.mark.asyncio
@@ -37,7 +53,7 @@ async def test_swarm_schemas_validation() -> None:
 @pytest.mark.asyncio
 async def test_bus_publish_and_ack_stream_task() -> None:
     """Verify publishing a task to a Redis Stream, reading it, and acknowledging it."""
-    bus = SwarmMessageBus()
+    bus = await require_redis_bus()
     stream_key = "swarm:test:stream"
     group_name = "test_group"
     consumer_name = "worker_1"
@@ -89,7 +105,7 @@ async def test_bus_publish_and_ack_stream_task() -> None:
 @pytest.mark.asyncio
 async def test_bus_pubsub_result_listener() -> None:
     """Verify listening for task results via Redis Pub/Sub."""
-    bus = SwarmMessageBus()
+    bus = await require_redis_bus()
 
     result = SwarmResult(
         task_id="task_pubsub_999",
