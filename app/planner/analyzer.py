@@ -1,10 +1,10 @@
-import json
 import logging
+
 from langsmith import traceable
 from pydantic import ValidationError
 
+from app.llm.client import DEFAULT_MODEL, get_llm_client
 from app.planner.schemas import ExecutionPlan, TaskStep
-from app.llm.client import get_llm_client, DEFAULT_MODEL
 
 logger = logging.getLogger(__name__)
 
@@ -55,6 +55,9 @@ class TaskAnalyzer:
             )
             
             raw_json = response.choices[0].message.content
+            if raw_json is None:
+                raise ValueError("Planner returned an empty response.")
+
             plan = ExecutionPlan.model_validate_json(raw_json)
             
             # Ensure there's a final synthesis step if not present

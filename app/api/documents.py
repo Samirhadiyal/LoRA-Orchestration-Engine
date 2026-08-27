@@ -1,6 +1,7 @@
 # app/api/documents.py
 import hashlib
 from typing import Annotated, Any
+from uuid import UUID
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 from sqlmodel import Session, select
@@ -52,7 +53,7 @@ async def upload_document(
         # 4. Chunk the document
         chunks_data = chunker.chunk_document(
             pages_data=parsed_pages, 
-            document_id=db_document.id, 
+            document_id=UUID(str(db_document.id)),
             filename=db_document.filename
         )
         

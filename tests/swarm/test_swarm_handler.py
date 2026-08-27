@@ -1,10 +1,11 @@
 # Path: tests/swarm/test_swarm_handler.py
 import uuid
+
 import pytest
 
+from app.planner.schemas import ExecutionPlan
 from app.router.handlers import SwarmHandler
 from app.router.state import ExecutionState, ExecutionStep, StepStatus
-from app.planner.schemas import ExecutionPlan
 
 
 class MockMessageBus:

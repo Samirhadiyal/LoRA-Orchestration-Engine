@@ -14,5 +14,5 @@ os.environ.setdefault("OPENAI_API_KEY", "sk-mock-dummy-key-for-offline-testing-o
 # 3. RAGAS COMPATIBILITY SHIM: Prevent Ragas from crashing on legacy VertexAI imports
 if "langchain_community.chat_models.vertexai" not in sys.modules:
     dummy_vertexai = types.ModuleType("langchain_community.chat_models.vertexai")
-    dummy_vertexai.ChatVertexAI = type("ChatVertexAI", (object,), {})
+    dummy_vertexai.ChatVertexAI = type("ChatVertexAI", (object,), {})  # type: ignore[attr-defined]
     sys.modules["langchain_community.chat_models.vertexai"] = dummy_vertexai
