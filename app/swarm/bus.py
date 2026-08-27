@@ -107,7 +107,7 @@ class SwarmMessageBus:
                         if isinstance(payload_raw, bytes):
                             payload_raw = payload_raw.decode("utf-8")
                         return json.loads(str(payload_raw))
-        except Exception as e:
+        except (RedisError, json.JSONDecodeError, UnicodeDecodeError) as e:
             logger.debug("Error listening for task on %s: %s", stream_key, e)
         return None
 
